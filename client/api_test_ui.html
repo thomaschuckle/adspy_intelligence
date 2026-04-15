@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>API Test UI</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 50px;
+    }
+    input, textarea, select, button {
+      width: 100%;
+      padding: 8px;
+      margin: 5px 0;
+      font-size: 16px;
+      box-sizing: border-box;
+    }
+    textarea {
+      height: 100px;
+      resize: vertical;
+    }
+    #response {
+      margin-top: 20px;
+      padding: 10px;
+      border: 1px solid #ccc;
+      white-space: pre-wrap;
+      background-color: #f9f9f9;
+    }
+  </style>
+</head>
+<body>
+
+<h2>Test REST API</h2>
+
+<label for="apiUrl">API URL:</label>
+<input type="text" id="apiUrl" placeholder="Enter API endpoint URL">
+
+<label for="httpMethod">HTTP Method:</label>
+<select id="httpMethod">
+  <option value="GET">GET</option>
+  <option value="POST" selected>POST</option>
+  <option value="PUT">PUT</option>
+  <option value="PATCH">PATCH</option>
+  <option value="DELETE">DELETE</option>
+</select>
+
+<label for="bodyType">Body Type:</label>
+<select id="bodyType">
+  <option value="json" selected>JSON</option>
+  <option value="text">Plain Text</option>
+</select>
+
+<label for="requestBody">Request Body:</label>
+<textarea id="requestBody" placeholder='{"key":"value"}'></textarea>
+
+<button onclick="callAPI()">Send Request</button>
+
+<div id="response">Response will appear here</div>
+
+<script>
+  async function callAPI() {
+    const url = document.getElementById('apiUrl').value;
+    const method = document.getElementById('httpMethod').value;
+    const bodyType = document.getElementById('bodyType').value;
+    const bodyText = document.getElementById('requestBody').value;
+    const responseDiv = document.getElementById('response');
+
+    try {
+      let body = null;
+      let headers = {};
+
+      if (bodyText) {
+        if (bodyType === 'json') {
+          body = JSON.stringify(JSON.parse(bodyText)); // Ensure valid JSON
+          headers['Content-Type'] = 'application/json';
+        } else {
+          body = bodyText;
+          headers['Content-Type'] = 'text/plain';
+        }
+      }
+      const proxyUrl = 'https://corsproxy.io/?';
+      const res = await fetch(proxyUrl + encodeURIComponent(url), {
+        method,
+        headers,
+        body: (method === 'GET' || method === 'DELETE') ? null : body
+      });
+
+      let data;
+      const contentType = res.headers.get('Content-Type') || '';
+      if (contentType.includes('application/json')) {
+        data = await res.json();
+        responseDiv.textContent = JSON.stringify(data, null, 2);
+      } else {
+        data = await res.text();
+        responseDiv.textContent = data;
+      }
+
+    } catch (err) {
+      responseDiv.textContent = 'Error: ' + err.message;
+    }
+  }
+</script>
+
+</body>
+</html>

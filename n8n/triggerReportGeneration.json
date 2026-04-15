@@ -1,0 +1,1450 @@
+{
+  "nodes": [
+    {
+      "parameters": {
+        "bucketName": "<YOUR-S3-BUCKET>",
+        "fileKey": "={{ $json.Key }}"
+      },
+      "type": "n8n-nodes-base.awsS3",
+      "typeVersion": 2,
+      "position": [
+        -1936,
+        -480
+      ],
+      "id": "e3642461-8662-4b10-9008-25be5e0b84e9",
+      "name": "Download a file",
+      "executeOnce": false,
+      "credentials": {
+        "aws": {
+          "id": "07wpyQkuGoulsBBt",
+          "name": "S3 Acc"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "let mergedArray = [];\n\nfor (let i = 0; i < items.length; i++) {\n    const itemData = items[i].json;\n    \n    if (Array.isArray(itemData)) {\n        mergedArray.push(...itemData);\n    } else {\n        mergedArray.push(itemData);\n    }\n}\n\nreturn [{\n    json: {\n        merged: mergedArray,\n        totalRecords: mergedArray.length\n    }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1584,
+        -480
+      ],
+      "id": "e6c6c910-3679-40ef-8457-15ae4ff0242d",
+      "name": "Code"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "971299ad-4f57-43df-95c6-576326d1acd7",
+              "name": "Content",
+              "value": "={{ $json.merged }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -1424,
+        -480
+      ],
+      "id": "e7ec7509-f608-4f29-8924-2e9260f61239",
+      "name": "Edit Fields1"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "trigger-report-generation",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -3072,
+        16
+      ],
+      "id": "74bfa415-08b5-4ca6-b42a-62be73089871",
+      "name": "Webhook",
+      "webhookId": "9d2c2652-d2ab-4299-89db-6b910b34fe0a"
+    },
+    {
+      "parameters": {
+        "bucketName": "<YOUR-S3-BUCKET>",
+        "fileKey": "={{ $json.Key }}"
+      },
+      "type": "n8n-nodes-base.awsS3",
+      "typeVersion": 2,
+      "position": [
+        -1936,
+        -240
+      ],
+      "id": "5f528949-688b-4c8d-9a7e-2f90ce2764db",
+      "name": "Download a file2",
+      "executeOnce": false,
+      "credentials": {
+        "aws": {
+          "id": "07wpyQkuGoulsBBt",
+          "name": "S3 Acc"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": "google/gemini-3-pro-preview",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        -1232,
+        -80
+      ],
+      "id": "6b226d3c-aa88-4e60-80aa-1133c93d0207",
+      "name": "OpenRouter Chat Model3",
+      "credentials": {
+        "openRouterApi": {
+          "id": "dLzVUIJ1WWymUfoc",
+          "name": "personal"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Analyze this advertising creative dataset and generate a concise, executive-focused optimization report.\n\n\n**TARGET COMPANY:** {{ $('Webhook').first().json.body.companyName }}\nDATASET OF IMAGE ANALYZE RESULT: {{ $('Edit Fields1').all()[0].json.Content }}\nDATASET OF SCRAPER FROM EACH LIBRARY: {{ $json.Content1 }}\n\n**DONT COUNT THE TOTAL FILE**\nSTEP 1 - CONTEXT DETECTION:\nDetermine: Brand/Company (logo_brand column), Platform(s) (platform column), Industry (infer from text_excerpt/target_audience), Geographic Market (location indicators if present).\nIf unclear, state: \"Unable to determine [X] from dataset.\"\n\nSTEP 2 - DATA CLEANING:\n1. Identify duplicates: Check for identical text_excerpt, brightness_score, contrast_score OR image_id suffixes like \"(Copy)\", \"(1)\", \"(2)\"\n3. All analysis below uses UNIQUE ads only\n\nSTEP 3 - RELEVANCE FILTERING:\n**TARGET COMPANY:** {{ $('Webhook').first().json.body.companyName }}\n1. Identify the PRIMARY industry/product category based on the MAJORITY of ads (e.g., if 90% are telecommunications, that's the primary category)\n2. Flag outlier ads that don't match the primary category:\n   - Check text_excerpt for unrelated product mentions\n   - Check target_audience for mismatched demographics\n   - Check text_theme for off-topic messaging\n3. EXCLUDE outlier ads from analysis if they represent <10% of dataset and are clearly off-topic\n4. Report: \"X ads excluded as off-topic (not related to primary [Industry] focus).\"\n\n**Example:** If 28/30 ads are about Internet/Telecom services, but 2 ads are about restaurants or retail stores, exclude those 2 ads.\n\n**Industry Mismatch Indicators:**\n- Text excerpt mentions completely different products (e.g., \"pizza delivery\" in a telecom dataset)\n- Target audience is unrelated (e.g., \"Restaurant Owners\" in a B2B SaaS dataset)\n- Pricing/offers don't match category (e.g., \"$5 meal deal\" in a software dataset)\n\n\n---\n\nSECTION 1: EXECUTIVE OVERVIEW (1-2 paragraphs max)\n\nBrief summary including:\n- Brand, Platform(s), Industry, Geographic Market\n- Dataset size: X total files, Y unique concepts, Z duplicates\n- Date range indicators (if present)\n\n---\n\nSECTION 2: CREATIVE AUDIT SUMMARY (Tables only, minimal text)\n\n**A) COLOR STRATEGY**\n| Metric | Current State | Optimal Range | Assessment |\n- Dominant colors (top 3 only)\n- Avg brightness/contrast scores\n- Brief assessment (1 sentence)\n\n**B) TEXT OPTIMIZATION**\n| Metric | Current State | Optimal Range | Assessment |\n- Avg text_area_ratio\n- % of ads in each range (0-0.15, 0.15-0.25, 0.25-0.35, 0.35+)\n- Text alignment distribution (top 2 only)\n\n**C) CTA ANALYSIS**\n| CTA Status | Count | % | Issue? |\n- CTA visible vs not visible\n- Note conversion-focused ads missing CTAs (if any)\n\n**D) VISUAL ELEMENTS**\n- Dominant_object distribution (top 3 only)\n- Human presence % (1 sentence assessment)\n\n**E) MESSAGING**\n- Top 3 text_themes (% distribution only)\n- Top 3 target_audiences (% distribution only)\n\n---\n\nSECTION 3: PLATFORM & CAMPAIGN ANALYSIS (Brief)\n\n**Platform Distribution:**\n- List platforms with % of ads per platform\n- Note if same creative used across platforms (yes/no + 1 sentence)\n\n**Campaign Patterns (Top 3 segments only):**\nFor each major segment (by ad_type or audience):\n- Volume (%)\n- Key design metrics (text ratio, CTA %, brightness)\n- 1-sentence observation\n\n---\n\nSECTION 4: TOP 5 CRITICAL ISSUES (Prioritized)\n\nFor EACH issue (keep under 1 page per issue):\n\n**ISSUE #[N]: [Clear Title]**\n\n1. **What the Data Shows:** [2-3 sentences max with specific numbers]\n\n2. **Why This Matters:** [1-2 sentences on platform/industry context]\n\n3. **Recommendation:** [Specific action in 2-3 sentences]\n\n4. **Expected Impact:** \n   - Estimated improvement: +X-Y% [metric] (Confidence: High/Medium/Low)\n   - Basis: [1 sentence explaining why]\n   - Assumptions: [1 sentence]\n\n5. **Implementation:** \n   - Effort: Low/Medium/High\n   - Time: [X days/weeks]\n   - Resources: [Brief list]\n   - Cost: $[range]\n\n---\n\nSECTION 5: 30-DAY ACTION PLAN (Table format)\n\n| Week | Action | Impact | Effort | Cost | Metrics to Track |\n|------|--------|--------|--------|------|------------------|\n| 1-2 | [Action 1] | +X-Y% [metric] | Low | $X-Y | [Key metrics] |\n| 1-2 | [Action 2] | +X-Y% [metric] | Low | $X-Y | [Key metrics] |\n| 1-2 | [Action 3] | +X-Y% [metric] | Low-Med | $X-Y | [Key metrics] |\n| 3-4 | [Action 4] | +X-Y% [metric] | Medium | $X-Y | [Key metrics] |\n| 3-4 | [Action 5] | +X-Y% [metric] | Medium-High | $X-Y | [Key metrics] |\n\n**30-Day Expected Impact:**\n- Conservative: [X-Y% improvement in primary metric]\n- Optimistic: [X-Y% improvement in primary metric]\n- Total Investment: $[X-Y]\n\n---\n\nSECTION 6: TESTING RECOMMENDATIONS (Brief)\n\n**Priority Tests (Top 3 only):**\n1. **Test Name:** Control vs Test | Metric to measure | Duration | Success criteria\n2. **Test Name:** Control vs Test | Metric to measure | Duration | Success criteria\n3. **Test Name:** Control vs Test | Metric to measure | Duration | Success criteria\n\n**Metrics to Track:** [Bullet list of 5-7 key metrics]\n\n---\n\nSECTION 7: ONE-PAGE EXECUTIVE SUMMARY\n\n**Campaign Context:** [2-3 sentences: Brand, platform, industry, dataset size]\n\n**Top 5 Findings:**\n1. [Finding with specific number]\n2. [Finding with specific number]\n3. [Finding with specific number]\n4. [Finding with specific number]\n5. [Finding with specific number]\n\n**Immediate Actions (Top 3):**\n1. [Action] → +X-Y% [metric] | [Timeline] | $[cost]\n2. [Action] → +X-Y% [metric] | [Timeline] | $[cost]\n3. [Action] → +X-Y% [metric] | [Timeline] | $[cost]\n\n**30-Day Impact:**\n- Expected improvement: X-Y% [primary metric]\n- Total investment: $[range]\n- ROI timeline: [X days to payback]\n\n**Key Limitations:**\nThis analysis evaluates creative design patterns only. Actual campaign performance data (CTR, conversions, spend, ROAS) is not available. All recommendations should be validated with A/B testing before full implementation.\n\n---\n\nEND OF REPORT\n\n---\n\nFORMATTING REQUIREMENTS:\n\n✓ Use tables wherever possible (replaces long paragraphs)\n✓ Maximum 2-3 sentences per explanation\n✓ Focus on TOP 3-5 items in every category (not exhaustive lists)\n✓ Remove redundant examples and detailed breakdowns\n✓ Keep Section 4 (Critical Issues) to 1 page per issue maximum\n✓ Use bullet points over paragraphs\n✓ Include [DATA PATTERN] tags for dataset insights\n✓ Confidence levels: High/Medium/Low (no lengthy explanations)\n✓ Impact ranges: +X-Y% format with brief basis\n✓ NO fake source citations\n✓ Adapt to detected brand/platform/industry\n\nLENGTH TARGET: 10-12 pages maximum",
+        "options": {
+          "systemMessage": "=You are an Expert Advertising Performance Analyst specializing in data-driven creative optimization for paid advertising campaigns across all platforms and industries.\n\nYour role is to analyze numerical ad design data and generate actionable intelligence reports that marketing teams can immediately implement, regardless of brand, platform, or industry vertical.\n\n**DONT COUNT THE TOTAL FILE**\n\nCRITICAL ANALYSIS RULES:\n\n1. DATA INTEGRITY FIRST\n   - Identify duplicates: if multiple rows have identical or nearly identical text_excerpt + brightness_score + contrast_score, they are duplicates\n   - Base ALL percentages and findings on UNIQUE ads only, not total files\n   \n   **RELEVANCE FILTERING:**\n   - Identify primary industry/category from majority of ads (e.g., 90% telecom → primary category is telecom)\n   - Flag and EXCLUDE ads that are clearly off-topic (different product category, unrelated industry)\n   - If <10% of dataset is off-topic outliers, exclude them from analysis\n   - Report: \"X ads excluded as irrelevant to primary [Industry] focus\"\n   - Example: If analyzing telecom ads, exclude any restaurant/retail/unrelated ads that were scraped by mistake\n\n2. BENCHMARK & CLAIMS DISCIPLINE\n   - You do NOT have access to external research databases\n   - NEVER cite specific sources like \"Meta Business 2024,\" \"Google Ads Research,\" \"TikTok Marketing Science,\" or any named studies\n   - Instead, use these formats:\n     ✓ CORRECT: \"[DATA PATTERN] Ads with text ratio above 0.40 show clustering in this dataset\"\n     ✓ CORRECT: \"Based on the data provided, ads with X characteristic show Y pattern\"\n     ✓ CORRECT: \"Standard design principles suggest...\" (general statement, no fake citation)\n     ✗ WRONG: \"[BENCHMARK] According to Platform Research 2024...\" (you don't have this)\n   - When making recommendations, base them on:\n     a) Patterns visible IN THE DATASET (correlations, outliers, clusters)\n     b) General design principles (contrast for readability, white space, visual hierarchy)\n     c) Platform conventions you can observe from the data (e.g., if platform column shows \"TikTok,\" infer vertical video format expectations)\n\n3. PERFORMANCE PREDICTIONS - BE REALISTIC\n   - You do NOT have actual performance data (CTR, conversions, spend, ROAS)\n   - NEVER state predictions as facts: \"This will increase CTR by 25%\"\n   - ALWAYS use ranges and confidence qualifiers:\n     ✓ CORRECT: \"Estimated impact: +15-30% improvement (Confidence: Medium)\"\n     ✓ CORRECT: \"Potential lift of 10-25% based on design optimization principles\"\n     ✓ CORRECT: \"Expected outcome: Moderate to significant improvement (actual results depend on audience, platform algorithm, and campaign context)\"\n   - Every prediction must include:\n     - A range (not a single number)\n     - Confidence level: High (strong data pattern), Medium (reasonable inference), Low (speculative)\n     - Assumptions: \"Assumes typical response to design improvements\"\n\n4. MISSING DATA HANDLING\n   - This dataset contains ONLY creative design metrics (colors, text ratio, layout, etc.)\n   - You do NOT have: CTR, conversion rates, ad spend, impression data, campaign dates, or performance outcomes\n   - Add this disclaimer in your report:\n     \"ANALYSIS SCOPE: This report analyzes creative design patterns only. Actual campaign performance data (CTR, conversions, spend, ROAS) is not included. Recommendations are based on design best practices and dataset patterns, and should be validated against campaign metrics before implementation.\"\n\n5. ADAPT TO BRAND & PLATFORM CONTEXT\n   - Detect brand from logo_brand column\n   - Detect platforms from platform column (Facebook, Instagram, TikTok, Google, LinkedIn, etc.)\n   - Detect industry from context clues (product types, messaging themes)\n   - Tailor recommendations to the specific platform(s) and industry:\n     * TikTok/Instagram Reels: vertical format, fast-paced, authentic style\n     * LinkedIn: professional tone, B2B messaging, subtle CTAs\n     * Facebook/Instagram Feed: balance of visual and text, clear value prop\n     * Google Display: banner dimensions, minimal text, brand recognition\n     * YouTube: video thumbnails, emotional hooks\n   - Do NOT make assumptions if platform/industry is unclear - state: \"Platform-specific optimization requires confirmation of ad placement (Feed vs Stories vs Display, etc.)\"\n\n6. PROVIDE CONTEXT FOR DECISIONS\n   - When identifying \"problems,\" acknowledge strategic context might exist\n   - Example: Instead of \"X ads lack CTAs - this is a critical error\"\n     Better: \"X ads lack visible CTAs. If these are conversion-focused campaigns, this represents an optimization opportunity. If they are awareness/brand campaigns, this may be intentional.\"\n\nREPORT STRUCTURE REQUIREMENTS:\n\n- Executive Summary: 3-5 bullet points maximum, lead with most impactful findings\n- Every section must include a data table comparing current state vs optimal ranges (adapted to platform/industry)\n- Use clear headers and bullet points (avoid walls of text)\n- Recommendations must include: Current state → Optimal state → Expected impact → Implementation effort\n- End with a one-page executive summary\n- Use professional but direct language (like a strategy consulting firm)\n\nBREVITY DISCIPLINE:\n- Default to tables over paragraphs (more data, less words)\n- Maximum 2-3 sentences per explanation\n- Show top 3-5 items per category (not exhaustive lists)\n- Critical Issues: 1 page per issue maximum\n- Remove redundant examples and lengthy context\n- Focus: Data → Insight → Action (shortest path)\n\nWRITING STYLE:\n\n- Lead with hard numbers: \"45% of ads have X\" not \"Many ads have X\"\n- Use competitive framing: \"optimization opportunity,\" \"performance gap,\" \"creative advantage\"\n- Avoid fluff - every sentence should contain a metric, insight, or action\n- Be honest about limitations: \"This analysis cannot determine actual performance without campaign data\"\n- When uncertain, say so: \"This pattern suggests...\" not \"This proves...\"\n- Adapt tone to industry: B2B (professional), DTC (consumer-friendly), SaaS (data-driven)\n\nINDUSTRY-SPECIFIC CONSIDERATIONS:\n\nWhen you detect the industry from the data, apply appropriate context:\n- E-commerce/DTC: Focus on product visuals, pricing clarity, urgency tactics\n- B2B/SaaS: Emphasize credibility, problem-solution messaging, professional aesthetics\n- Finance/Insurance: Trust signals, simplicity, compliance-friendly design\n- Entertainment/Gaming: Bold visuals, emotional hooks, event-driven content\n- Healthcare: Calming colors, educational tone, accessibility\n- Real Estate: Lifestyle imagery, location highlights, aspirational messaging\n\nIf industry is unclear from data, state: \"Industry context not determinable from dataset. Recommendations are general design principles.\"\n\nCRITICAL REMINDER:\nYou are analyzing DESIGN DATA ONLY. You cannot see which ads actually performed well or poorly. Your job is to identify design patterns, flag potential issues based on best practices, and suggest optimizations - NOT to guarantee specific performance outcomes."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2,
+      "position": [
+        -1184,
+        -240
+      ],
+      "id": "3cd2c3db-abd4-4992-9057-860528855730",
+      "name": "AI Agent3",
+      "executeOnce": true,
+      "retryOnFail": true,
+      "maxTries": 2,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "upload",
+        "bucketName": "<YOUR-S3-BUCKET>",
+        "fileName": "=reports/{{ $('Webhook').first().json.body.jobId }}/report.json",
+        "binaryData": false,
+        "fileContent": "=[{\"output\":{{ JSON.stringify($json.output, null, 2) }}}]",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.awsS3",
+      "typeVersion": 2,
+      "position": [
+        -784,
+        -448
+      ],
+      "id": "a1c81e6f-0e9a-4505-9565-cb6f43e37b25",
+      "name": "Upload a file",
+      "alwaysOutputData": false,
+      "credentials": {
+        "aws": {
+          "id": "07wpyQkuGoulsBBt",
+          "name": "S3 Acc"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "let mergedArray = [];\n\nfor (let i = 0; i < items.length; i++) {\n    const itemData = items[i].json;\n    \n    if (Array.isArray(itemData)) {\n        mergedArray.push(...itemData);\n    } else {\n        mergedArray.push(itemData);\n    }\n}\n\nreturn [{\n    json: {\n        merged: mergedArray,\n        totalRecords: mergedArray.length\n    }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1584,
+        -240
+      ],
+      "id": "ead6a8e3-9c24-4cd5-baa2-cdc86a9cb223",
+      "name": "Code3"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "a1c84145-cdd3-4eab-8f74-9a1e1aa42a8f",
+              "name": "Content1",
+              "value": "={{ $json.merged }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -1424,
+        -240
+      ],
+      "id": "65a0479b-6981-4112-a771-3b88446a4b24",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "bucketName": "<YOUR-S3-BUCKET>",
+        "returnAll": true,
+        "options": {
+          "folderKey": "=image2text/{{ $('Webhook').first().json.body.companyName }}/"
+        }
+      },
+      "type": "n8n-nodes-base.awsS3",
+      "typeVersion": 2,
+      "position": [
+        -2128,
+        -480
+      ],
+      "id": "d101f38c-af95-40a2-86e7-371e78ae638b",
+      "name": "Get List of files to Download",
+      "alwaysOutputData": true,
+      "executeOnce": true,
+      "credentials": {
+        "aws": {
+          "id": "07wpyQkuGoulsBBt",
+          "name": "S3 Acc"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "bucketName": "<YOUR-S3-BUCKET>",
+        "returnAll": true,
+        "options": {
+          "folderKey": "=preprocessed/json/{{ $('Webhook').first().json.body.companyName }}/"
+        }
+      },
+      "type": "n8n-nodes-base.awsS3",
+      "typeVersion": 2,
+      "position": [
+        -2128,
+        -240
+      ],
+      "id": "5209bff4-73a8-49d8-9de3-dda2e2e6a3f7",
+      "name": "Get list of files to Download",
+      "executeOnce": true,
+      "credentials": {
+        "aws": {
+          "id": "07wpyQkuGoulsBBt",
+          "name": "S3 Acc"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "fromJson",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1,
+      "position": [
+        -1760,
+        -480
+      ],
+      "id": "6c811d5b-5d8c-41e0-8968-44a0aaa1330a",
+      "name": "Extract from File"
+    },
+    {
+      "parameters": {
+        "operation": "fromJson",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1,
+      "position": [
+        -1760,
+        -240
+      ],
+      "id": "6bb33478-b25a-4c71-873a-301e6c810453",
+      "name": "Extract from File1"
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "a",
+        "contextWindowLength": 0
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        -992,
+        -80
+      ],
+      "id": "afc0a2ae-e6f4-48b4-9d7c-6aa2bdc345cd",
+      "name": "Simple Memory"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://<YOUR-AWS-API>/fields",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "companyId",
+              "value": "={{ $('Webhook').first().json.body.companyId }}"
+            },
+            {
+              "name": "jobId",
+              "value": "={{ $('Webhook').first().json.body.jobId }}"
+            },
+            {
+              "name": "fieldToUpdate",
+              "value": "reportStatus"
+            },
+            {
+              "name": "updatedValue",
+              "value": "2"
+            },
+            {
+              "name": "tables",
+              "value": "jobs"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -528,
+        -576
+      ],
+      "id": "14c105b8-ba14-438c-bd3a-dafa33b25182",
+      "name": "Update reportStatus -> 2",
+      "alwaysOutputData": false
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://<YOUR-AWS-API>/fields",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "companyId",
+              "value": "={{ $('Webhook').first().json.body.companyId }}"
+            },
+            {
+              "name": "jobId",
+              "value": "={{ $('Webhook').first().json.body.jobId }}"
+            },
+            {
+              "name": "fieldToUpdate",
+              "value": "reportRetryCount"
+            },
+            {
+              "name": "updatedValue",
+              "value": "0"
+            },
+            {
+              "name": "tables",
+              "value": "jobs"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -528,
+        -416
+      ],
+      "id": "f228c2e4-2416-40c0-b20c-2e78e8e2ba31",
+      "name": "Update reportRetryCount",
+      "alwaysOutputData": false
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://<YOUR-AWS-API>/fields",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "companyId",
+              "value": "={{ $('Webhook').first().json.body.companyId }}"
+            },
+            {
+              "name": "jobId",
+              "value": "={{ $('Webhook').first().json.body.jobId }}"
+            },
+            {
+              "name": "fieldToUpdate",
+              "value": "reportPath "
+            },
+            {
+              "name": "updatedValue",
+              "value": "=reports/{{ $('Webhook').first().json.body.jobId }}/report.json"
+            },
+            {
+              "name": "tables",
+              "value": "jobs"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -528,
+        -256
+      ],
+      "id": "c2099ef3-8168-4b16-9b1d-788b5baea507",
+      "name": "Update reportPath",
+      "alwaysOutputData": false
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://<YOUR-AWS-API>/fields",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "companyId",
+              "value": "={{ $('Webhook').first().json.body.companyId }}"
+            },
+            {
+              "name": "jobId",
+              "value": "={{ $('Webhook').first().json.body.jobId }}"
+            },
+            {
+              "name": "fieldToUpdate",
+              "value": "reportRetryCount"
+            },
+            {
+              "name": "updatedValue",
+              "value": "2"
+            },
+            {
+              "name": "tables",
+              "value": "jobs"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -784,
+        -96
+      ],
+      "id": "7b4dfb28-4f1c-487b-a360-b74ce086ab71",
+      "name": "Update reportRetryCount -> 2",
+      "alwaysOutputData": false
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://<YOUR-AWS-API>/fields",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "companyId",
+              "value": "={{ $('Webhook').first().json.body.companyId }}"
+            },
+            {
+              "name": "jobId",
+              "value": "={{ $('Webhook').first().json.body.jobId }}"
+            },
+            {
+              "name": "fieldToUpdate",
+              "value": "reportPath "
+            },
+            {
+              "name": "updatedValue",
+              "value": "=reports/{{ $('Webhook').first().json.body.jobId }}/report.json"
+            },
+            {
+              "name": "tables",
+              "value": "jobs"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -784,
+        80
+      ],
+      "id": "f885e69c-0570-4b56-95f7-85548a59d27b",
+      "name": "Update reportPath1",
+      "alwaysOutputData": false
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "bucketName": "<YOUR-S3-BUCKET>",
+        "returnAll": true,
+        "options": {
+          "folderKey": "=image2text/{{ $json.body.companyName }}/"
+        }
+      },
+      "type": "n8n-nodes-base.awsS3",
+      "typeVersion": 2,
+      "position": [
+        -2912,
+        16
+      ],
+      "id": "a81cf08f-782e-4bc6-82a7-dd422afae17b",
+      "name": "Get many files2",
+      "alwaysOutputData": true,
+      "executeOnce": true,
+      "credentials": {
+        "aws": {
+          "id": "07wpyQkuGoulsBBt",
+          "name": "S3 Acc"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "return [\n  {\n    json: {\n      count: items.length\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2752,
+        16
+      ],
+      "id": "fe6704af-d757-4f2c-b78f-9757b3a782c2",
+      "name": "get the total item"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "73caeff6-ee92-48a8-94ab-0dcf0b40d338",
+              "leftValue": "={{ $json.count }}",
+              "rightValue": 4,
+              "operator": {
+                "type": "number",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -2592,
+        16
+      ],
+      "id": "90ea049f-2ce7-4561-afc1-6cb9483abb69",
+      "name": "If1"
+    },
+    {
+      "parameters": {
+        "bucketName": "<YOUR-S3-BUCKET>",
+        "fileKey": "={{ $json.Key }}"
+      },
+      "type": "n8n-nodes-base.awsS3",
+      "typeVersion": 2,
+      "position": [
+        -1968,
+        608
+      ],
+      "id": "42259a1e-e865-46aa-86ae-37078a09c526",
+      "name": "Download a file3",
+      "executeOnce": false,
+      "credentials": {
+        "aws": {
+          "id": "07wpyQkuGoulsBBt",
+          "name": "S3 Acc"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": "google/gemini-3-pro-preview",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        -1280,
+        768
+      ],
+      "id": "c5a0b114-c912-4d6b-8ca0-3f88868dd09c",
+      "name": "OpenRouter Chat Model",
+      "credentials": {
+        "openRouterApi": {
+          "id": "dLzVUIJ1WWymUfoc",
+          "name": "personal"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Analyze this advertising creative dataset and generate a concise, executive-focused optimization report.\n\n**TARGET COMPANY:** {{ $('Webhook').first().json.body.companyName }}\nDATASET OF SCRAPER FROM EACH LIBRARY: {{ $json.Content1 }}\n\n**DONT COUNT THE TOTAL FILE**\n\nSTEP 1 - CONTEXT DETECTION:\nDetermine: Brand/Company (logo_brand column), Platform(s) (platform column), Industry (infer from text_excerpt/target_audience), Geographic Market (location indicators if present).\nIf unclear, state: \"Unable to determine [X] from dataset.\"\n\nSTEP 2 - DATA CLEANING:\n1. Identify duplicates: Check for identical text_excerpt, brightness_score, contrast_score OR image_id suffixes like \"(Copy)\", \"(1)\", \"(2)\"\n3. All analysis below uses UNIQUE ads only\n\nSTEP 3 - RELEVANCE FILTERING:\n**TARGET COMPANY:** {{ $('Webhook').first().json.body.companyName }}\n1. Identify the PRIMARY industry/product category based on the MAJORITY of ads (e.g., if 90% are telecommunications, that's the primary category)\n2. Flag outlier ads that don't match the primary category:\n   - Check text_excerpt for unrelated product mentions\n   - Check target_audience for mismatched demographics\n   - Check text_theme for off-topic messaging\n3. EXCLUDE outlier ads from analysis if they represent <10% of dataset and are clearly off-topic\n4. Report: \"X ads excluded as off-topic (not related to primary [Industry] focus). \"\n\n**Example:** If 28/30 ads are about Internet/Telecom services, but 2 ads are about restaurants or retail stores, exclude those 2 ads.\n\n**Industry Mismatch Indicators:**\n- Text excerpt mentions completely different products (e.g., \"pizza delivery\" in a telecom dataset)\n- Target audience is unrelated (e.g., \"Restaurant Owners\" in a B2B SaaS dataset)\n- Pricing/offers don't match category (e.g., \"$5 meal deal\" in a software dataset)\n\n\n---\n\nSECTION 1: EXECUTIVE OVERVIEW (1-2 paragraphs max)\n\nBrief summary including:\n- Brand, Platform(s), Industry, Geographic Market\n- Dataset size: X total files, Y unique concepts, Z duplicates\n- Date range indicators (if present)\n\n---\n\nSECTION 2: CREATIVE AUDIT SUMMARY (Tables only, minimal text)\n\n**A) COLOR STRATEGY**\n| Metric | Current State | Optimal Range | Assessment |\n- Dominant colors (top 3 only)\n- Avg brightness/contrast scores\n- Brief assessment (1 sentence)\n\n**B) TEXT OPTIMIZATION**\n| Metric | Current State | Optimal Range | Assessment |\n- Avg text_area_ratio\n- % of ads in each range (0-0.15, 0.15-0.25, 0.25-0.35, 0.35+)\n- Text alignment distribution (top 2 only)\n\n**C) CTA ANALYSIS**\n| CTA Status | Count | % | Issue? |\n- CTA visible vs not visible\n- Note conversion-focused ads missing CTAs (if any)\n\n**D) VISUAL ELEMENTS**\n- Dominant_object distribution (top 3 only)\n- Human presence % (1 sentence assessment)\n\n**E) MESSAGING**\n- Top 3 text_themes (% distribution only)\n- Top 3 target_audiences (% distribution only)\n\n---\n\nSECTION 3: PLATFORM & CAMPAIGN ANALYSIS (Brief)\n\n**Platform Distribution:**\n- List platforms with % of ads per platform\n- Note if same creative used across platforms (yes/no + 1 sentence)\n\n**Campaign Patterns (Top 3 segments only):**\nFor each major segment (by ad_type or audience):\n- Volume (%)\n- Key design metrics (text ratio, CTA %, brightness)\n- 1-sentence observation\n\n---\n\nSECTION 4: TOP 5 CRITICAL ISSUES (Prioritized)\n\nFor EACH issue (keep under 1 page per issue):\n\n**ISSUE #[N]: [Clear Title]**\n\n1. **What the Data Shows:** [2-3 sentences max with specific numbers]\n\n2. **Why This Matters:** [1-2 sentences on platform/industry context]\n\n3. **Recommendation:** [Specific action in 2-3 sentences]\n\n4. **Expected Impact:** \n   - Estimated improvement: +X-Y% [metric] (Confidence: High/Medium/Low)\n   - Basis: [1 sentence explaining why]\n   - Assumptions: [1 sentence]\n\n5. **Implementation:** \n   - Effort: Low/Medium/High\n   - Time: [X days/weeks]\n   - Resources: [Brief list]\n   - Cost: $[range]\n\n---\n\nSECTION 5: 30-DAY ACTION PLAN (Table format)\n\n| Week | Action | Impact | Effort | Cost | Metrics to Track |\n|------|--------|--------|--------|------|------------------|\n| 1-2 | [Action 1] | +X-Y% [metric] | Low | $X-Y | [Key metrics] |\n| 1-2 | [Action 2] | +X-Y% [metric] | Low | $X-Y | [Key metrics] |\n| 1-2 | [Action 3] | +X-Y% [metric] | Low-Med | $X-Y | [Key metrics] |\n| 3-4 | [Action 4] | +X-Y% [metric] | Medium | $X-Y | [Key metrics] |\n| 3-4 | [Action 5] | +X-Y% [metric] | Medium-High | $X-Y | [Key metrics] |\n\n**30-Day Expected Impact:**\n- Conservative: [X-Y% improvement in primary metric]\n- Optimistic: [X-Y% improvement in primary metric]\n- Total Investment: $[X-Y]\n\n---\n\nSECTION 6: TESTING RECOMMENDATIONS (Brief)\n\n**Priority Tests (Top 3 only):**\n1. **Test Name:** Control vs Test | Metric to measure | Duration | Success criteria\n2. **Test Name:** Control vs Test | Metric to measure | Duration | Success criteria\n3. **Test Name:** Control vs Test | Metric to measure | Duration | Success criteria\n\n**Metrics to Track:** [Bullet list of 5-7 key metrics]\n\n---\n\nSECTION 7: ONE-PAGE EXECUTIVE SUMMARY\n\n**Campaign Context:** [2-3 sentences: Brand, platform, industry, dataset size]\n\n**Top 5 Findings:**\n1. [Finding with specific number]\n2. [Finding with specific number]\n3. [Finding with specific number]\n4. [Finding with specific number]\n5. [Finding with specific number]\n\n**Immediate Actions (Top 3):**\n1. [Action] → +X-Y% [metric] | [Timeline] | $[cost]\n2. [Action] → +X-Y% [metric] | [Timeline] | $[cost]\n3. [Action] → +X-Y% [metric] | [Timeline] | $[cost]\n\n**30-Day Impact:**\n- Expected improvement: X-Y% [primary metric]\n- Total investment: $[range]\n- ROI timeline: [X days to payback]\n\n**Key Limitations:**\nThis analysis evaluates creative design patterns only. Actual campaign performance data (CTR, conversions, spend, ROAS) is not available. All recommendations should be validated with A/B testing before full implementation.\n\n---\n\nEND OF REPORT\n\n---\n\nFORMATTING REQUIREMENTS:\n\n✓ Use tables wherever possible (replaces long paragraphs)\n✓ Maximum 2-3 sentences per explanation\n✓ Focus on TOP 3-5 items in every category (not exhaustive lists)\n✓ Remove redundant examples and detailed breakdowns\n✓ Keep Section 4 (Critical Issues) to 1 page per issue maximum\n✓ Use bullet points over paragraphs\n✓ Include [DATA PATTERN] tags for dataset insights\n✓ Confidence levels: High/Medium/Low (no lengthy explanations)\n✓ Impact ranges: +X-Y% format with brief basis\n✓ NO fake source citations\n✓ Adapt to detected brand/platform/industry\n\nLENGTH TARGET: 10-12 pages maximum",
+        "options": {
+          "systemMessage": "=You are an Expert Advertising Performance Analyst specializing in data-driven creative optimization for paid advertising campaigns across all platforms and industries.\n\nYour role is to analyze numerical ad design data and generate actionable intelligence reports that marketing teams can immediately implement, regardless of brand, platform, or industry vertical.\n\nCRITICAL ANALYSIS RULES:\n\n**DONT COUNT THE TOTAL FILE**\n\n1. DATA INTEGRITY FIRST\n   - Identify duplicates: if multiple rows have identical or nearly identical text_excerpt + brightness_score + contrast_score, they are duplicates\n   - Base ALL percentages and findings on UNIQUE ads only, not total files\n   \n   **RELEVANCE FILTERING:**\n   - Identify primary industry/category from majority of ads (e.g., 90% telecom → primary category is telecom)\n   - Flag and EXCLUDE ads that are clearly off-topic (different product category, unrelated industry)\n   - If <10% of dataset is off-topic outliers, exclude them from analysis\n   - Report: \"X ads excluded as irrelevant to primary [Industry] focus\"\n   - Example: If analyzing telecom ads, exclude any restaurant/retail/unrelated ads that were scraped by mistake\n\n2. BENCHMARK & CLAIMS DISCIPLINE\n   - You do NOT have access to external research databases\n   - NEVER cite specific sources like \"Meta Business 2024,\" \"Google Ads Research,\" \"TikTok Marketing Science,\" or any named studies\n   - Instead, use these formats:\n     ✓ CORRECT: \"[DATA PATTERN] Ads with text ratio above 0.40 show clustering in this dataset\"\n     ✓ CORRECT: \"Based on the data provided, ads with X characteristic show Y pattern\"\n     ✓ CORRECT: \"Standard design principles suggest...\" (general statement, no fake citation)\n     ✗ WRONG: \"[BENCHMARK] According to Platform Research 2024...\" (you don't have this)\n   - When making recommendations, base them on:\n     a) Patterns visible IN THE DATASET (correlations, outliers, clusters)\n     b) General design principles (contrast for readability, white space, visual hierarchy)\n     c) Platform conventions you can observe from the data (e.g., if platform column shows \"TikTok,\" infer vertical video format expectations)\n\n3. PERFORMANCE PREDICTIONS - BE REALISTIC\n   - You do NOT have actual performance data (CTR, conversions, spend, ROAS)\n   - NEVER state predictions as facts: \"This will increase CTR by 25%\"\n   - ALWAYS use ranges and confidence qualifiers:\n     ✓ CORRECT: \"Estimated impact: +15-30% improvement (Confidence: Medium)\"\n     ✓ CORRECT: \"Potential lift of 10-25% based on design optimization principles\"\n     ✓ CORRECT: \"Expected outcome: Moderate to significant improvement (actual results depend on audience, platform algorithm, and campaign context)\"\n   - Every prediction must include:\n     - A range (not a single number)\n     - Confidence level: High (strong data pattern), Medium (reasonable inference), Low (speculative)\n     - Assumptions: \"Assumes typical response to design improvements\"\n\n4. MISSING DATA HANDLING\n   - This dataset contains ONLY creative design metrics (colors, text ratio, layout, etc.)\n   - You do NOT have: CTR, conversion rates, ad spend, impression data, campaign dates, or performance outcomes\n   - Add this disclaimer in your report:\n     \"ANALYSIS SCOPE: This report analyzes creative design patterns only. Actual campaign performance data (CTR, conversions, spend, ROAS) is not included. Recommendations are based on design best practices and dataset patterns, and should be validated against campaign metrics before implementation.\"\n\n5. ADAPT TO BRAND & PLATFORM CONTEXT\n   - Detect brand from logo_brand column\n   - Detect platforms from platform column (Facebook, Instagram, TikTok, Google, LinkedIn, etc.)\n   - Detect industry from context clues (product types, messaging themes)\n   - Tailor recommendations to the specific platform(s) and industry:\n     * TikTok/Instagram Reels: vertical format, fast-paced, authentic style\n     * LinkedIn: professional tone, B2B messaging, subtle CTAs\n     * Facebook/Instagram Feed: balance of visual and text, clear value prop\n     * Google Display: banner dimensions, minimal text, brand recognition\n     * YouTube: video thumbnails, emotional hooks\n   - Do NOT make assumptions if platform/industry is unclear - state: \"Platform-specific optimization requires confirmation of ad placement (Feed vs Stories vs Display, etc.)\"\n\n6. PROVIDE CONTEXT FOR DECISIONS\n   - When identifying \"problems,\" acknowledge strategic context might exist\n   - Example: Instead of \"X ads lack CTAs - this is a critical error\"\n     Better: \"X ads lack visible CTAs. If these are conversion-focused campaigns, this represents an optimization opportunity. If they are awareness/brand campaigns, this may be intentional.\"\n\nREPORT STRUCTURE REQUIREMENTS:\n\n- Executive Summary: 3-5 bullet points maximum, lead with most impactful findings\n- Every section must include a data table comparing current state vs optimal ranges (adapted to platform/industry)\n- Use clear headers and bullet points (avoid walls of text)\n- Recommendations must include: Current state → Optimal state → Expected impact → Implementation effort\n- End with a one-page executive summary\n- Use professional but direct language (like a strategy consulting firm)\n\nBREVITY DISCIPLINE:\n- Default to tables over paragraphs (more data, less words)\n- Maximum 2-3 sentences per explanation\n- Show top 3-5 items per category (not exhaustive lists)\n- Critical Issues: 1 page per issue maximum\n- Remove redundant examples and lengthy context\n- Focus: Data → Insight → Action (shortest path)\n\nWRITING STYLE:\n\n- Lead with hard numbers: \"45% of ads have X\" not \"Many ads have X\"\n- Use competitive framing: \"optimization opportunity,\" \"performance gap,\" \"creative advantage\"\n- Avoid fluff - every sentence should contain a metric, insight, or action\n- Be honest about limitations: \"This analysis cannot determine actual performance without campaign data\"\n- When uncertain, say so: \"This pattern suggests...\" not \"This proves...\"\n- Adapt tone to industry: B2B (professional), DTC (consumer-friendly), SaaS (data-driven)\n\nINDUSTRY-SPECIFIC CONSIDERATIONS:\n\nWhen you detect the industry from the data, apply appropriate context:\n- E-commerce/DTC: Focus on product visuals, pricing clarity, urgency tactics\n- B2B/SaaS: Emphasize credibility, problem-solution messaging, professional aesthetics\n- Finance/Insurance: Trust signals, simplicity, compliance-friendly design\n- Entertainment/Gaming: Bold visuals, emotional hooks, event-driven content\n- Healthcare: Calming colors, educational tone, accessibility\n- Real Estate: Lifestyle imagery, location highlights, aspirational messaging\n\nIf industry is unclear from data, state: \"Industry context not determinable from dataset. Recommendations are general design principles.\"\n\nCRITICAL REMINDER:\nYou are analyzing DESIGN DATA ONLY. You cannot see which ads actually performed well or poorly. Your job is to identify design patterns, flag potential issues based on best practices, and suggest optimizations - NOT to guarantee specific performance outcomes."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2,
+      "position": [
+        -1216,
+        608
+      ],
+      "id": "03b44a83-e8dd-47e0-b9c8-d6c4fbeba7f7",
+      "name": "AI Agent",
+      "executeOnce": true,
+      "retryOnFail": true,
+      "maxTries": 2,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "upload",
+        "bucketName": "<YOUR-S3-BUCKET>",
+        "fileName": "=reports/{{ $('Webhook').first().json.body.jobId }}/report.json",
+        "binaryData": false,
+        "fileContent": "=[{\"output\":{{ JSON.stringify($json.output, null, 2) }}}]",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.awsS3",
+      "typeVersion": 2,
+      "position": [
+        -816,
+        400
+      ],
+      "id": "9f91c131-0c94-4741-8437-7aa9499fccf0",
+      "name": "Upload a file1",
+      "alwaysOutputData": false,
+      "credentials": {
+        "aws": {
+          "id": "07wpyQkuGoulsBBt",
+          "name": "S3 Acc"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "let mergedArray = [];\n\nfor (let i = 0; i < items.length; i++) {\n    const itemData = items[i].json;\n    \n    if (Array.isArray(itemData)) {\n        mergedArray.push(...itemData);\n    } else {\n        mergedArray.push(itemData);\n    }\n}\n\nreturn [{\n    json: {\n        merged: mergedArray,\n        totalRecords: mergedArray.length\n    }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1616,
+        608
+      ],
+      "id": "bdaa37ee-2b43-4ed3-876c-d0ee53ff37d2",
+      "name": "Code4"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "a1c84145-cdd3-4eab-8f74-9a1e1aa42a8f",
+              "name": "Content1",
+              "value": "={{ $json.merged }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -1456,
+        608
+      ],
+      "id": "f37967e0-e1bd-4f83-a04d-b64658f4e079",
+      "name": "Edit Fields3"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "bucketName": "<YOUR-S3-BUCKET>",
+        "returnAll": true,
+        "options": {
+          "folderKey": "=preprocessed/json/{{ $('Webhook').first().json.body.companyName }}/"
+        }
+      },
+      "type": "n8n-nodes-base.awsS3",
+      "typeVersion": 2,
+      "position": [
+        -2160,
+        608
+      ],
+      "id": "0394660b-8990-449c-a31c-4f77ac99fba6",
+      "name": "Get list of files to Download1",
+      "executeOnce": true,
+      "credentials": {
+        "aws": {
+          "id": "07wpyQkuGoulsBBt",
+          "name": "S3 Acc"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "fromJson",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1,
+      "position": [
+        -1792,
+        608
+      ],
+      "id": "3dc7dce5-0944-4a3a-9e81-d342160909c6",
+      "name": "Extract from File3"
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "a",
+        "contextWindowLength": 0
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        -1024,
+        768
+      ],
+      "id": "2f89a0f5-8873-47a2-a689-a5eb8962b3fa",
+      "name": "Simple Memory1"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://<YOUR-AWS-API>/fields",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "companyId",
+              "value": "={{ $('Webhook').first().json.body.companyId }}"
+            },
+            {
+              "name": "jobId",
+              "value": "={{ $('Webhook').first().json.body.jobId }}"
+            },
+            {
+              "name": "fieldToUpdate",
+              "value": "reportStatus"
+            },
+            {
+              "name": "updatedValue",
+              "value": "2"
+            },
+            {
+              "name": "tables",
+              "value": "jobs"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -560,
+        272
+      ],
+      "id": "8e93935f-9d8f-43c0-a285-28b4d7a291ad",
+      "name": "Update reportStatus -> ",
+      "alwaysOutputData": false
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://<YOUR-AWS-API>/fields",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "companyId",
+              "value": "={{ $('Webhook').first().json.body.companyId }}"
+            },
+            {
+              "name": "jobId",
+              "value": "={{ $('Webhook').first().json.body.jobId }}"
+            },
+            {
+              "name": "fieldToUpdate",
+              "value": "reportRetryCount"
+            },
+            {
+              "name": "updatedValue",
+              "value": "0"
+            },
+            {
+              "name": "tables",
+              "value": "jobs"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -560,
+        432
+      ],
+      "id": "fbc58091-4972-4a29-b17b-bda920783b94",
+      "name": "Update reportRetryCount1",
+      "alwaysOutputData": false
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://<YOUR-AWS-API>/fields",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "companyId",
+              "value": "={{ $('Webhook').first().json.body.companyId }}"
+            },
+            {
+              "name": "jobId",
+              "value": "={{ $('Webhook').first().json.body.jobId }}"
+            },
+            {
+              "name": "fieldToUpdate",
+              "value": "reportPath "
+            },
+            {
+              "name": "updatedValue",
+              "value": "=reports/{{ $('Webhook').first().json.body.jobId }}/report.json"
+            },
+            {
+              "name": "tables",
+              "value": "jobs"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -560,
+        608
+      ],
+      "id": "7c5186f5-11b6-4cf1-a3fe-67f8e019cd89",
+      "name": "Update reportPath2",
+      "alwaysOutputData": false
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://<YOUR-AWS-API>/fields",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "companyId",
+              "value": "={{ $('Webhook').first().json.body.companyId }}"
+            },
+            {
+              "name": "jobId",
+              "value": "={{ $('Webhook').first().json.body.jobId }}"
+            },
+            {
+              "name": "fieldToUpdate",
+              "value": "reportRetryCount"
+            },
+            {
+              "name": "updatedValue",
+              "value": "2"
+            },
+            {
+              "name": "tables",
+              "value": "jobs"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -816,
+        752
+      ],
+      "id": "30ab6f6a-066f-4996-8d55-5073909b9f14",
+      "name": "Update reportRetryCount -> ",
+      "alwaysOutputData": false
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://<YOUR-AWS-API>/fields",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "companyId",
+              "value": "={{ $('Webhook').first().json.body.companyId }}"
+            },
+            {
+              "name": "jobId",
+              "value": "={{ $('Webhook').first().json.body.jobId }}"
+            },
+            {
+              "name": "fieldToUpdate",
+              "value": "reportPath "
+            },
+            {
+              "name": "updatedValue",
+              "value": "=reports/{{ $('Webhook').first().json.body.jobId }}/report.json"
+            },
+            {
+              "name": "tables",
+              "value": "jobs"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -816,
+        928
+      ],
+      "id": "dd3933d4-2a57-49c6-9c7b-feb05856ad3d",
+      "name": "Update reportPath3",
+      "alwaysOutputData": false
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://<YOUR-AWS-API>/fields",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "companyId",
+              "value": "={{ $('Webhook').first().json.body.companyId }}"
+            },
+            {
+              "name": "jobId",
+              "value": "={{ $('Webhook').first().json.body.jobId }}"
+            },
+            {
+              "name": "fieldToUpdate",
+              "value": "reportStatus"
+            },
+            {
+              "name": "updatedValue",
+              "value": "-1"
+            },
+            {
+              "name": "tables",
+              "value": "jobs"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -816,
+        592
+      ],
+      "id": "489f953e-7066-4b16-b880-391f027e6247",
+      "name": "Update reportStatus -> -1",
+      "alwaysOutputData": false
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://<YOUR-AWS-API>/fields",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "companyId",
+              "value": "={{ $('Webhook').first().json.body.companyId }}"
+            },
+            {
+              "name": "jobId",
+              "value": "={{ $('Webhook').first().json.body.jobId }}"
+            },
+            {
+              "name": "fieldToUpdate",
+              "value": "reportStatus"
+            },
+            {
+              "name": "updatedValue",
+              "value": "-1"
+            },
+            {
+              "name": "tables",
+              "value": "jobs"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -784,
+        -256
+      ],
+      "id": "8fef051e-229f-4fd4-99a1-ada5e0a5b3e1",
+      "name": "Update reportStatus -> -",
+      "alwaysOutputData": false
+    }
+  ],
+  "connections": {
+    "Download a file": {
+      "main": [
+        [
+          {
+            "node": "Extract from File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields1": {
+      "main": [
+        [
+          {
+            "node": "Get list of files to Download",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Get many files2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download a file2": {
+      "main": [
+        [
+          {
+            "node": "Extract from File1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenRouter Chat Model3": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent3",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent3": {
+      "main": [
+        [
+          {
+            "node": "Upload a file",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Update reportRetryCount -> 2",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Update reportStatus -> -",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Update reportPath1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload a file": {
+      "main": [
+        [
+          {
+            "node": "Update reportStatus -> 2",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Update reportRetryCount",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Update reportPath",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code3": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "AI Agent3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get List of files to Download": {
+      "main": [
+        [
+          {
+            "node": "Download a file",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get list of files to Download": {
+      "main": [
+        [
+          {
+            "node": "Download a file2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract from File": {
+      "main": [
+        [
+          {
+            "node": "Code",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract from File1": {
+      "main": [
+        [
+          {
+            "node": "Code3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent3",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update reportStatus -> 2": {
+      "main": [
+        []
+      ]
+    },
+    "Update reportRetryCount": {
+      "main": [
+        []
+      ]
+    },
+    "Get many files2": {
+      "main": [
+        [
+          {
+            "node": "get the total item",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "get the total item": {
+      "main": [
+        [
+          {
+            "node": "If1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If1": {
+      "main": [
+        [
+          {
+            "node": "Get List of files to Download",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Get list of files to Download1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download a file3": {
+      "main": [
+        [
+          {
+            "node": "Extract from File3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenRouter Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Upload a file1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Update reportRetryCount -> ",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Update reportStatus -> -1",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Update reportPath3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload a file1": {
+      "main": [
+        [
+          {
+            "node": "Update reportStatus -> ",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Update reportRetryCount1",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Update reportPath2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code4": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields3": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get list of files to Download1": {
+      "main": [
+        [
+          {
+            "node": "Download a file3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract from File3": {
+      "main": [
+        [
+          {
+            "node": "Code4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Memory1": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {
+    "Webhook": [
+      {
+        "headers": {
+          "host": "<YOUR-HOST-DOMAIN>",
+          "user-agent": "python-requests/2.32.5",
+          "content-length": "384",
+          "accept": "*/*",
+          "accept-encoding": "gzip, br",
+          "cdn-loop": "cloudflare; loops=1; subreqs=1",
+          "cf-connecting-ip": "16.52.77.28",
+          "cf-ew-via": "15",
+          "cf-ipcountry": "CA",
+          "cf-ray": "9a8562df025541f2-EWR",
+          "cf-visitor": "{\"scheme\":\"https\"}",
+          "cf-worker": "n8n.cloud",
+          "content-type": "application/json",
+          "x-forwarded-for": "16.52.77.28, 162.158.159.188",
+          "x-forwarded-host": "<YOUR-HOST-DOMAIN>",
+          "x-forwarded-port": "443",
+          "x-forwarded-proto": "https",
+          "x-forwarded-server": "traefik-prod-users-gwc-40-669b86c79-64tnz",
+          "x-is-trusted": "yes",
+          "x-real-ip": "16.52.77.28"
+        },
+        "params": {},
+        "query": {},
+        "body": {
+          "companyId": "5c74f66e003a8c0525a2e24dc2c9c0c6d23e60e9a36127add6b2d1b2d1e1c725",
+          "companyName": "algonquin_college",
+          "jobId": "2abb3920630e564e687e08df037ce79d6f0e574f64d6ba43574b7091fa372dfa",
+          "bucket": "<YOUR-S3-BUCKET>",
+          "preprocessedJsonPath": "preprocessed/json/algonquin_college/",
+          "image2textPath": "image2text/algonquin_college/",
+          "timestamp": "2025-12-03T19:14:17.768741+00:00"
+        },
+        "webhookUrl": "https://<YOUR-HOST-DOMAIN>/trigger-report-generation",
+        "executionMode": "production"
+      }
+    ]
+  },
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "a955702ba6226580b4f4e3c5ce36cf98bf81e8281d2dc405424c38ee160f7d28"
+  }
+}

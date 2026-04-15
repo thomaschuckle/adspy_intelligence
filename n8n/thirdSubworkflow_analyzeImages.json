@@ -1,0 +1,328 @@
+{
+  "nodes": [
+    {
+      "parameters": {
+        "inputSource": "passthrough"
+      },
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        -912,
+        0
+      ],
+      "id": "98b8a107-2804-47c3-b8cb-1d4d73631e9a",
+      "name": "When Executed by Another Workflow"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Please analyze each of the following ad images and extract structured creative data according to your system instructions.\n\nImages to process: {{ $json.data }}\n\nRequirements:\n- Analyze ALL images (if there are 14 images, analyze all 14)\n- Use exact file names for image_id: {{ $json.data.map(item => item.name) }}\n- Use the 'Get_Scrape_Data' tool for ad platform information\n- Output format: Start directly with \"[\" - no explanations, no markdown, no extra text",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "=You are a Visual Ad Intelligence Extraction Agent.\n\nYour task is to analyze a list of advertisement images and convert each image into a structured JSON object containing normalized, consistent, and repeatable creative intelligence data. Your output will be used for marketing insight generation, visual charting, and competitor benchmarking.\n\nFor EVERY image, extract the following fields:\n\n🆔 IDENTIFICATION:\n- image_id: Use the exact original filename of each input image — do not generate or alter it — as the `image_id`.\n- logo_brand: Detected brand name (e.g., \"Bell\", \"Rogers\").\n- platform: Use the tools called Get_Scrape_Data to get the information for the list of publisher_platform  (e.g., [\"Facebook\", \"Instagram\"], etc).\n\n🎨 VISUAL COMPOSITION:\n- dominant_color: Most prominent color (e.g., \"White\", \"Blue\" , etc).\n- secondary_color: Second-most prominent color.\n- tertiary_color: Third-most prominent color.\n- brightness_score: Float 0–1 (dark to bright).\n- contrast_score: Float 0–1 (low to high contrast).\n- text_area_ratio: Float 0–1 (portion of image covered by text).\n- text_alignment: \"Top-heavy\", \"Centered\", \"Bottom\", or \"Scattered\".\n\n👤 HUMAN & PRODUCT DETECTION:\n- call_to_action_visible: 1 if a CTA is visible, else 0.\n- target_audience: Inferred audience segment (e.g., \"Young Adults\", \"Families\", \"Tech Enthusiasts\").\n\n📝 TEXT & MESSAGING:\n- text_excerpt: A short excerpt of visible text (max ~25 words).\n- text_theme: \"Sale\", \"Holiday\", \"Bundle\", \"Feature Focus\", etc.\n\n🧩 CREATIVE CLASSIFICATION:\n- ad_type: \"Product Shot\", \"Lifestyle\", \"Promo Banner\", etc.\n- dominant_object: The most visually dominant object in the image (e.g., \"Laptop\", \"Shoe\", \"Person\", \"Phone\", \"Text Box\")\n\n📤 OUTPUT FORMAT:\nReturn your output as a JSON array where each image is an object. Maintain the same field order. Example:\n\n[\n  {\n    \"image_id\": \"ad1.jpg\",\n    \"logo_brand\": \"Bell\",\n    \"platform\": [\"Facebook\", \"Instagram\"],\n    \"dominant_color\": \"White\",\n    \"secondary_color\": \"Blue\",\n    \"tertiary_color\": \"Gray\",\n    \"brightness_score\": 0.82,\n    \"contrast_score\": 0.7,\n    \"text_area_ratio\": 0.25,\n    \"text_alignment\": \"Bottom\",\n    \"call_to_action_visible\": 1,\n    \"target_audience\": \"Young Adults\",\n    \"text_excerpt\": \"Save big with Bell this summer!\",\n    \"text_theme\": \"Sale\",\n    \"ad_type\": \"Promo Banner\",\n    \"dominant_object\": \"Phone\"\n  }\n]\n\nCRITICAL OUTPUT RULES:\n- Return ONLY valid JSON starting with \"[\"\n- Do not add explanations, markdown, or wrapper objects\n- Every field must be present for every image\n- Use exact filename for image_id (no modifications)\n\n🔁 CONSISTENCY & RULES:\n- Use consistent labels and capitalizations across runs.\n- Repeatable outputs: Avoid randomness unless the visual is truly ambiguous.\n- Always include all fields (even if null, \"Unclear\", or 0).\n- Don’t hallucinate fields not visible or infer brand if no logo is detected.\n\nYour job is **not to evaluate ad quality**, but to extract features for further insight by downstream agents or analysts.\n"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2,
+      "position": [
+        -368,
+        16
+      ],
+      "id": "0c4b779d-03be-435b-8d5f-6c4b815216ca",
+      "name": "AI Agent1",
+      "alwaysOutputData": true,
+      "retryOnFail": true,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "B",
+        "contextWindowLength": 1
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        -352,
+        176
+      ],
+      "id": "a073bc5b-6335-48b1-86a8-3caaac0e2fb2",
+      "name": "Simple Memory1"
+    },
+    {
+      "parameters": {
+        "model": "google/gemini-2.5-pro",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        -464,
+        176
+      ],
+      "id": "f7e69274-d7ee-4985-8f7b-cbbf3697dc80",
+      "name": "gg 2.5 pro1",
+      "credentials": {
+        "openRouterApi": {
+          "id": "S6Rc6g0Lgh9WZsBA",
+          "name": "Client OpenRouter Acc"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "schemaType": "manual",
+        "inputSchema": "{\n  \"$schema\": \"http://json-schema.org/draft-07/schema#\",\n  \"title\": \"AdImageData\",\n  \"type\": \"array\",\n  \"items\": {\n    \"type\": \"object\",\n    \"required\": [\n      \"image_id\",\n      \"logo_brand\",\n      \"platform\",\n      \"dominant_color\",\n      \"secondary_color\",\n      \"tertiary_color\",\n      \"brightness_score\",\n      \"contrast_score\",\n      \"text_area_ratio\",\n      \"text_alignment\",\n      \"call_to_action_visible\",\n      \"target_audience\",\n      \"text_excerpt\",\n      \"text_theme\",\n      \"ad_type\",\n      \"dominant_object\"\n    ],\n    \"properties\": {\n      \"image_id\": {\n        \"type\": \"string\"\n      },\n      \"logo_brand\": {\n        \"type\": \"string\"\n      },\n      \"platform\": {\n        \"type\": \"array\",\n        \"items\": {\n          \"type\": \"string\"\n        }\n      },\n      \"dominant_color\": {\n        \"type\": \"string\"\n      },\n      \"secondary_color\": {\n        \"type\": \"string\"\n      },\n      \"tertiary_color\": {\n        \"type\": \"string\"\n      },\n      \"brightness_score\": {\n        \"type\": \"number\"\n      },\n      \"contrast_score\": {\n        \"type\": \"number\"\n      },\n      \"text_area_ratio\": {\n        \"type\": \"number\"\n      },\n      \"text_alignment\": {\n        \"type\": \"string\"\n      },\n      \"call_to_action_visible\": {\n        \"type\": \"integer\",\n        \"enum\": [0, 1]\n      },\n      \"target_audience\": {\n        \"type\": \"string\"\n      },\n      \"text_excerpt\": {\n        \"type\": \"string\"\n      },\n      \"text_theme\": {\n        \"type\": \"string\"\n      },\n      \"ad_type\": {\n        \"type\": \"string\"\n      },\n      \"dominant_object\": {\n        \"type\": \"string\"\n      }\n    }\n  }\n}\n"
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        -192,
+        176
+      ],
+      "id": "a02367b0-36e9-458d-b4cc-12a4a55bef02",
+      "name": "format_final_json_response"
+    },
+    {
+      "parameters": {
+        "aggregate": "aggregateAllItemData",
+        "options": {
+          "includeBinaries": true
+        }
+      },
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [
+        -752,
+        0
+      ],
+      "id": "be9b187e-37b7-4bfe-b69e-7bf54973cc2c",
+      "name": "Aggregate"
+    },
+    {
+      "parameters": {
+        "operation": "upload",
+        "bucketName": "<YOUR-S3-BUCKET>",
+        "fileName": "=image2text/{{ $('When Executed by Another Workflow').first().json.companyName }}/batch_3_{{ $('When Executed by Another Workflow').first().json.companyName }}_{{ $('When Executed by Another Workflow').first().json.timeStamp }}.json",
+        "binaryData": false,
+        "fileContent": "={{ JSON.stringify($json.output, null, 2) }}",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.awsS3",
+      "typeVersion": 2,
+      "position": [
+        0,
+        -80
+      ],
+      "id": "4f884daa-d470-4868-906f-2c2d37795bd9",
+      "name": "Upload a file",
+      "alwaysOutputData": true,
+      "executeOnce": true,
+      "credentials": {
+        "aws": {
+          "id": "07wpyQkuGoulsBBt",
+          "name": "S3 Acc"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "440263d9-4ac9-4b46-9596-d70a03a811a4",
+              "leftValue": "={{ $json.data[0].data }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notExists",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -576,
+        0
+      ],
+      "id": "6e764615-918c-4a06-b46e-835721bdb330",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "operation": "upload",
+        "bucketName": "<YOUR-S3-BUCKET>",
+        "fileName": "=image2text/{{ $('When Executed by Another Workflow').first().json.companyName }}/batch_3_{{ $('When Executed by Another Workflow').first().json.companyName }}_{{ $('When Executed by Another Workflow').first().json.timeStamp }}.json",
+        "binaryData": false,
+        "fileContent": "=null",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.awsS3",
+      "typeVersion": 2,
+      "position": [
+        -368,
+        -160
+      ],
+      "id": "eb5d7dda-e9ea-48cb-8715-844ede8288fc",
+      "name": "Upload a file1",
+      "alwaysOutputData": true,
+      "executeOnce": true,
+      "credentials": {
+        "aws": {
+          "id": "07wpyQkuGoulsBBt",
+          "name": "S3 Acc"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://<YOUR-AWS-API>/fields",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "companyId",
+              "value": "={{ $('When Executed by Another Workflow').first().json.companyId }}"
+            },
+            {
+              "name": "jobId",
+              "value": "={{ $('When Executed by Another Workflow').first().json.jobId }}"
+            },
+            {
+              "name": "fieldToUpdate",
+              "value": "image2textStatus"
+            },
+            {
+              "name": "updatedValue",
+              "value": "0"
+            },
+            {
+              "name": "tables",
+              "value": "jobs,companies"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        0,
+        80
+      ],
+      "id": "3cffb1c9-c16a-468c-8e60-6f74d645f2a4",
+      "name": "image2textStatus -> 0",
+      "alwaysOutputData": false
+    }
+  ],
+  "connections": {
+    "When Executed by Another Workflow": {
+      "main": [
+        [
+          {
+            "node": "Aggregate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent1": {
+      "main": [
+        [
+          {
+            "node": "Upload a file",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "image2textStatus -> 0",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Memory1": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent1",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "gg 2.5 pro1": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent1",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "format_final_json_response": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "AI Agent1",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Upload a file1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "AI Agent1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "a955702ba6226580b4f4e3c5ce36cf98bf81e8281d2dc405424c38ee160f7d28"
+  }
+}
